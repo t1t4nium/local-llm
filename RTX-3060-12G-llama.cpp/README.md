@@ -92,6 +92,19 @@ cmake -B build \
 cmake --build build -j $((`nproc` - 2))
 ```
 
+| Parameter | Description | Value |
+|---|---|---|
+| `BUILD_SHARED_LIBS` | Build shared libraries | `OFF`. Static linking keeps the binaries self-contained. |
+| `CMAKE_BUILD_TYPE` | Compiler optimization level | `Release`. Enables -O2/-O3, strips debug symbols. |
+| `CMAKE_CUDA_ARCHITECTURES` | Target GPU architecture | `86`. RTX 3060 is compute capability 8.6 (Ampere). Compiles CUDA kernels for the exact chip instead of relying on just-in-time translation. |
+| `GGML_CUDA` | GPU acceleration backend | `ON`. Without it, nothing runs on the GPU. |
+| `GGML_CUDA_GRAPHS` | CUDA Graph capture/replay | `ON`. Records sequences of CUDA operations and replays them, cutting kernel launch overhead by about 5%. |
+| `GGML_NATIVE` | CPU instruction sets | `ON`. Passes -march=native to the compiler (AVX2, FMA, etc.). Speeds up tokenization and whatever the CPU still handles. |
+| `LLAMA_BUILD_SERVER` | Build the HTTP server binary | `ON`. Agent talks to the server through its OpenAI-compatible API. |
+| `LLAMA_BUILD_UI` | Build the web interface | `OFF`. The server is not driven via a browser. |
+| `LLAMA_USE_PREBUILT_UI` | Download prebuilt web UI assets | `OFF`. No web UI is used. |
+| `-j` | Parallel build jobs | `$(nproc) - 2`. Leaves two cores free so the machine stays responsive while building. |
+
 Install:
 
 ```bash
@@ -135,6 +148,25 @@ NoNewPrivileges=true
 [Install]
 WantedBy=default.target
 ```
+
+| Parameter | Description | Value |
+|---|---|---|
+| `GGML_CUDA_ENABLE_UNIFIED_MEMORY` | CUDA unified memory (env var) | `1`. Lets pages move between GPU and system RAM as needed. If cache and model ever push past 12 GB VRAM, pages spill to RAM instead of crashing. |
+| `--host` | Bind address | `127.0.0.1`. No access from outside the machine. |
+| `--port` | Listen port | `8080`. Agent connects here. |
+| `--timeout` | Idle connection timeout | `600` (10 minutes). Covers the gap between agent requests without holding connections open forever. |
+| `--parallel` | Concurrent slots | `1`. A second slot would double the KV cache. With 12 GB VRAM that means thrashing. |
+| `--jinja` | Jinja chat template | On. Hermes Agent uses the template for tool-calling. |
+| `--metrics` | Prometheus-style metrics | On. Exposes `/metrics` for checking VRAM, tokens, and speed while debugging. |
+| `--sleep-idle-seconds` | Unload model on idle | `600` (10 minutes). Frees VRAM when nothing is happening. The model reloads on the next request. |
+| `--ctx-checkpoints` | KV cache checkpoints | `64`. Saves the context at regular intervals. When a new request shares a prefix with an earlier one, the server picks up from the nearest checkpoint instead of recomputing attention from the start. |
+| `--checkpoint-min-step` | Checkpoint interval | `512`. A checkpoint every 512 tokens. An agent that sends many short requests hits a recent checkpoint more often. |
+| `-fa` | Flash attention | `auto`. llama.cpp picks the best implementation for the hardware. Cuts VRAM use and speeds up attention. |
+| `-ngl` | Layers offloaded to GPU | `99`. Every layer stays on the GPU. If even one layer ran on CPU, generation speed would tank. |
+| `-c` | Context window size | `65536` (64k). |
+| `-ctk` | Key cache quantization | `q4_0`. 4-bit KV cache, about 1.1 GB at 64k context. A full f16 cache would be about 4 GB, pushing model plus cache over 12 GB VRAM and cutting generation speed from ~13.2 t/s to ~1.4 t/s. |
+| `-ctv` | Value cache quantization | `q4_0`. Same deal as `-ctk`: 4-bit keeps the value cache small enough to fit. |
+| `-m` | Model path | `/etc/llama/models/qwen3.8-27b-q3.gguf`. |
 
 Enable and start llama-server:
 
