@@ -167,6 +167,8 @@ WantedBy=default.target
 | `-ctk` | Key cache quantization | `q4_0`. 4-bit KV cache, about 1.1 GB at 64k context. A full f16 cache would be about 4 GB, pushing model plus cache over 12 GB VRAM and cutting generation speed from ~13.2 t/s to ~1.4 t/s. |
 | `-ctv` | Value cache quantization | `q4_0`. Same deal as `-ctk`: 4-bit keeps the value cache small enough to fit. |
 | `-m` | Model path | `/etc/llama/models/qwen3.8-27b-q3.gguf`. |
+| `LimitMEMLOCK` | systemd: locked memory ceiling | `infinity`. CUDA needs to pin host memory for DMA transfers between CPU and GPU. systemd defaults to 64 KB, which breaks CUDA init. Removing the cap is standard for GPU workloads. |
+| `NoNewPrivileges` | systemd: block privilege escalation | `true`. The server runs as `llama` and stays that way. |
 
 Enable and start llama-server:
 
